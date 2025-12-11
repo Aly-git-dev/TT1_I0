@@ -64,7 +64,9 @@ public class SecurityConfig {
         CorsConfiguration cfg = new CorsConfiguration();
 
         cfg.setAllowedOriginPatterns(List.of(
-                "http://148.204.142.20"
+                "http://148.204.142.20:3030",
+                "http://148.204.142.20:3021",
+                "http://148.204.142.20:5432"
         ));
 
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
