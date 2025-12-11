@@ -25,7 +25,7 @@ import java.nio.file.StandardCopyOption;
 
 import java.util.*;
 
-@CrossOrigin(origins = "http://148.204.142.20:4200")
+@CrossOrigin(origins = "http://148.204.142.20:3030")
 @RestController
 @RequestMapping("/upiiz/public/v1/me")
 @Tag(name = "Perfil", description = "Operaciones relacionadas con el perfil del usuario autenticado")
