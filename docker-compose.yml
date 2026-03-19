@@ -50,9 +50,8 @@ services:
     image: mailhog/mailhog:v1.0.1
     container_name: upiiz_mailhog
     ports:
-      - "65535:65535"  # UI
+      - "8025:8025"  # UI
       - "1025:1025"  # SMTP
 
 volumes:
   db_data:
-
