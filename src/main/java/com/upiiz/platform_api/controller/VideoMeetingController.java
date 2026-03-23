@@ -68,4 +68,11 @@ public class VideoMeetingController {
     ) {
         return videoMeetingService.cancel(id, request, currentUserId);
     }
+    @GetMapping("/by-appointment/{appointmentId}")
+    public VideoMeeting getByAppointment(
+            @PathVariable UUID appointmentId,
+            @RequestHeader("X-User-Id") UUID currentUserId
+    ) {
+        return videoMeetingService.getByAppointment(appointmentId, currentUserId);
+    }
 }
