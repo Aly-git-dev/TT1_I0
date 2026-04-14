@@ -5,6 +5,5 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public record CreateVideoMeetingRequest(
-        @NotNull UUID appointmentId,
-        @NotNull UUID hostUserId
+        @NotNull UUID appointmentId
 ) {}

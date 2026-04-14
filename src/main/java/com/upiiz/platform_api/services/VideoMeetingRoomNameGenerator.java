@@ -3,6 +3,7 @@ package com.upiiz.platform_api.services;
 import org.springframework.stereotype.Component;
 
 import java.text.Normalizer;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -12,7 +13,9 @@ public class VideoMeetingRoomNameGenerator {
     public String generate(String title, UUID appointmentId) {
         String slug = slugify(title);
         String shortHash = UUID.randomUUID().toString().substring(0, 6);
-        return "upiiz-" + slug + "-" + appointmentId.toString().substring(0, 8) + "-" + shortHash;
+        long unix = Instant.now().toEpochMilli();
+
+        return "upiiz-" + slug + "-" + appointmentId.toString().substring(0, 8) + "-" + unix + "-" + shortHash;
     }
 
     private String slugify(String input) {

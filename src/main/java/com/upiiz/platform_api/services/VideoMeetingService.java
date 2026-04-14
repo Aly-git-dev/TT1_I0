@@ -51,13 +51,6 @@ public class VideoMeetingService {
             throw new IllegalStateException("No se puede crear videoconferencia para una cita cancelada");
         }
 
-        boolean hostBelongs = appointmentParticipantRepo
-                .existsByAppointment_IdAndUserId(request.appointmentId(), request.hostUserId());
-
-        if (!hostBelongs) {
-            throw new IllegalStateException("El host no pertenece a la cita");
-        }
-
         boolean creatorBelongs = appointmentParticipantRepo
                 .existsByAppointment_IdAndUserId(request.appointmentId(), currentUserId);
 
@@ -70,7 +63,7 @@ public class VideoMeetingService {
 
         VideoMeeting vm = VideoMeeting.create(
                 appointment.getId(),
-                request.hostUserId(),
+                currentUserId,
                 currentUserId,
                 roomName,
                 meetingUrl
