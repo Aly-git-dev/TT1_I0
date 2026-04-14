@@ -1,186 +1,100 @@
-package com.upiiz.platform_api.services;
+package com.upiiz.platform_api.controller;
 
 import com.upiiz.platform_api.dto.CancelVideoMeetingRequest;
 import com.upiiz.platform_api.dto.CreateVideoMeetingRequest;
 import com.upiiz.platform_api.dto.JoinVideoMeetingResponse;
-import com.upiiz.platform_api.entities.Appointment;
+import com.upiiz.platform_api.entities.User;
 import com.upiiz.platform_api.entities.VideoMeeting;
-import com.upiiz.platform_api.entities.VideoMeetingAttendance;
-import com.upiiz.platform_api.models.AppointmentStatus;
-import com.upiiz.platform_api.models.Modality;
-import com.upiiz.platform_api.models.VideoMeetingRole;
-import com.upiiz.platform_api.models.VideoMeetingStatus;
-import com.upiiz.platform_api.repositories.AppointmentParticipantRepo;
-import com.upiiz.platform_api.repositories.AppointmentRepo;
-import com.upiiz.platform_api.repositories.VideoMeetingAttendanceRepo;
-import com.upiiz.platform_api.repositories.VideoMeetingRepo;
+import com.upiiz.platform_api.repositories.UserRepository;
+import com.upiiz.platform_api.services.VideoMeetingService;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
-@Service
+@RestController
+@RequestMapping("/upiiz/public/v1/video-meetings")
 @RequiredArgsConstructor
-public class VideoMeetingService {
+public class VideoMeetingController {
 
-    private static final String JITSI_DOMAIN = "meet.jit.si";
+    private final VideoMeetingService videoMeetingService;
+    private final UserRepository userRepository;
 
-    private final AppointmentRepo appointmentRepo;
-    private final AppointmentParticipantRepo appointmentParticipantRepo;
-    private final VideoMeetingRepo videoMeetingRepo;
-    private final VideoMeetingAttendanceRepo videoMeetingAttendanceRepo;
-    private final VideoMeetingRoomNameGenerator roomNameGenerator;
+    private UUID getCurrentUserId(Authentication authentication) {
+        String email = authentication.getName();
 
-    @Transactional
-    public VideoMeeting create(CreateVideoMeetingRequest request, UUID currentUserId) {
-        Appointment appointment = appointmentRepo.findById(request.appointmentId())
-                .orElseThrow(() -> new EntityNotFoundException("La cita no existe"));
+        User user = userRepository.findByEmailInst(email)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("Usuario autenticado no encontrado con email: " + email)
+                );
 
-        if (videoMeetingRepo.existsByAppointmentId(request.appointmentId())) {
-            throw new IllegalStateException("Ya existe una videoconferencia para esta cita");
-        }
-
-        if (appointment.getModality() != Modality.ONLINE) {
-            throw new IllegalStateException("Solo se puede crear videoconferencia para citas online");
-        }
-
-        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
-            throw new IllegalStateException("No se puede crear videoconferencia para una cita cancelada");
-        }
-
-        boolean creatorBelongs = appointmentParticipantRepo
-                .existsByAppointment_IdAndUserId(request.appointmentId(), currentUserId);
-
-        if (!creatorBelongs && !appointment.getCreatedBy().equals(currentUserId)) {
-            throw new IllegalStateException("No tienes permiso para crear esta videoconferencia");
-        }
-
-        String roomName = roomNameGenerator.generate(appointment.getTitle(), appointment.getId());
-        String meetingUrl = "https://" + JITSI_DOMAIN + "/" + roomName;
-
-        VideoMeeting vm = VideoMeeting.create(
-                appointment.getId(),
-                currentUserId,
-                currentUserId,
-                roomName,
-                meetingUrl
-        );
-
-        return videoMeetingRepo.save(vm);
+        return user.getId();
     }
 
-    @Transactional(readOnly = true)
-    public VideoMeeting getById(UUID meetingId, UUID currentUserId) {
-        VideoMeeting vm = videoMeetingRepo.findById(meetingId)
-                .orElseThrow(() -> new EntityNotFoundException("Videoconferencia no encontrada"));
-
-        boolean belongs = appointmentParticipantRepo
-                .existsByAppointment_IdAndUserId(vm.getAppointmentId(), currentUserId);
-
-        if (!belongs && !vm.getCreatedBy().equals(currentUserId)) {
-            throw new IllegalStateException("No tienes acceso a esta videoconferencia");
-        }
-
-        return vm;
+    @PostMapping
+    public VideoMeeting create(
+            @Valid @RequestBody CreateVideoMeetingRequest request,
+            Authentication authentication
+    ) {
+        UUID currentUserId = getCurrentUserId(authentication);
+        return videoMeetingService.create(request, currentUserId);
     }
 
-    @Transactional(readOnly = true)
-    public List<VideoMeeting> getMine(UUID currentUserId) {
-        return videoMeetingRepo.findByHostUserId(currentUserId);
+    @GetMapping("/{id}")
+    public VideoMeeting getById(
+            @PathVariable UUID id,
+            Authentication authentication
+    ) {
+        UUID currentUserId = getCurrentUserId(authentication);
+        return videoMeetingService.getById(id, currentUserId);
     }
 
-    @Transactional
-    public JoinVideoMeetingResponse join(UUID meetingId, UUID currentUserId, String displayName, String deviceInfo) {
-        VideoMeeting vm = videoMeetingRepo.findById(meetingId)
-                .orElseThrow(() -> new EntityNotFoundException("Videoconferencia no encontrada"));
-
-        boolean belongs = appointmentParticipantRepo
-                .existsByAppointment_IdAndUserId(vm.getAppointmentId(), currentUserId);
-
-        if (!belongs) {
-            throw new IllegalStateException("No perteneces a esta cita");
-        }
-
-        if (vm.getStatus() == VideoMeetingStatus.CANCELLED) {
-            throw new IllegalStateException("La videoconferencia fue cancelada");
-        }
-
-        if (vm.getStatus() == VideoMeetingStatus.ENDED) {
-            throw new IllegalStateException("La videoconferencia ya terminó");
-        }
-
-        vm.markLive();
-        videoMeetingRepo.save(vm);
-
-        VideoMeetingRole role = currentUserId.equals(vm.getHostUserId())
-                ? VideoMeetingRole.HOST
-                : VideoMeetingRole.PARTICIPANT;
-
-        VideoMeetingAttendance attendance = VideoMeetingAttendance.create(
-                vm.getId(),
-                currentUserId,
-                role,
-                deviceInfo
-        );
-
-        videoMeetingAttendanceRepo.save(attendance);
-
-        return new JoinVideoMeetingResponse(
-                vm.getId(),
-                vm.getProvider().name(),
-                JITSI_DOMAIN,
-                vm.getRoomName(),
-                vm.getMeetingUrl(),
-                displayName
-        );
+    @GetMapping("/by-appointment/{appointmentId}")
+    public VideoMeeting getByAppointment(
+            @PathVariable UUID appointmentId,
+            Authentication authentication
+    ) {
+        UUID currentUserId = getCurrentUserId(authentication);
+        return videoMeetingService.getByAppointment(appointmentId, currentUserId);
     }
 
-    @Transactional
-    public void leave(UUID meetingId, UUID currentUserId) {
-        VideoMeeting vm = videoMeetingRepo.findById(meetingId)
-                .orElseThrow(() -> new EntityNotFoundException("Videoconferencia no encontrada"));
-
-        VideoMeetingAttendance attendance = videoMeetingAttendanceRepo
-                .findTopByVideoMeetingIdAndUserIdAndLeftAtIsNullOrderByJoinedAtDesc(meetingId, currentUserId)
-                .orElseThrow(() -> new IllegalStateException("No hay sesión activa para cerrar"));
-
-        attendance.closeSession();
-        videoMeetingAttendanceRepo.save(attendance);
-
-        long openSessions = videoMeetingAttendanceRepo.countByVideoMeetingIdAndLeftAtIsNull(meetingId);
-        if (openSessions == 0 && vm.getStatus() == VideoMeetingStatus.LIVE) {
-            vm.end();
-            videoMeetingRepo.save(vm);
-        }
+    @GetMapping("/mine")
+    public List<VideoMeeting> getMine(Authentication authentication) {
+        UUID currentUserId = getCurrentUserId(authentication);
+        return videoMeetingService.getMine(currentUserId);
     }
 
-    @Transactional
-    public VideoMeeting cancel(UUID meetingId, CancelVideoMeetingRequest request, UUID currentUserId) {
-        VideoMeeting vm = videoMeetingRepo.findById(meetingId)
-                .orElseThrow(() -> new EntityNotFoundException("Videoconferencia no encontrada"));
-
-        if (!vm.getHostUserId().equals(currentUserId) && !vm.getCreatedBy().equals(currentUserId)) {
-            throw new IllegalStateException("No tienes permiso para cancelar esta videoconferencia");
-        }
-
-        vm.cancel(currentUserId, request.reason());
-        return videoMeetingRepo.save(vm);
+    @PostMapping("/{id}/join")
+    public JoinVideoMeetingResponse join(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "Usuario") String displayName,
+            @RequestParam(required = false) String deviceInfo,
+            Authentication authentication
+    ) {
+        UUID currentUserId = getCurrentUserId(authentication);
+        return videoMeetingService.join(id, currentUserId, displayName, deviceInfo);
     }
-    @Transactional(readOnly = true)
-    public VideoMeeting getByAppointment(UUID appointmentId, UUID currentUserId) {
-        VideoMeeting vm = videoMeetingRepo.findByAppointmentId(appointmentId)
-                .orElseThrow(() -> new EntityNotFoundException("No existe videollamada para esta cita"));
 
-        boolean belongs = appointmentParticipantRepo
-                .existsByAppointment_IdAndUserId(vm.getAppointmentId(), currentUserId);
+    @PostMapping("/{id}/leave")
+    public void leave(
+            @PathVariable UUID id,
+            Authentication authentication
+    ) {
+        UUID currentUserId = getCurrentUserId(authentication);
+        videoMeetingService.leave(id, currentUserId);
+    }
 
-        if (!belongs && !vm.getCreatedBy().equals(currentUserId)) {
-            throw new IllegalStateException("No tienes acceso a esta videollamada");
-        }
-
-        return vm;
+    @PatchMapping("/{id}/cancel")
+    public VideoMeeting cancel(
+            @PathVariable UUID id,
+            @Valid @RequestBody CancelVideoMeetingRequest request,
+            Authentication authentication
+    ) {
+        UUID currentUserId = getCurrentUserId(authentication);
+        return videoMeetingService.cancel(id, request, currentUserId);
     }
 }
