@@ -1,8 +1,8 @@
 package com.upiiz.platform_api.services;
 
-import io.micrometer.common.lang.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.lang.Nullable;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -11,8 +11,7 @@ import org.springframework.stereotype.Service;
 public class MailService {
 
     @Nullable
-    private final JavaMailSender mailSender;
-
+    private final JavaMailSender mailSender; // será null si no configuras spring.mail.*
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
@@ -20,7 +19,6 @@ public class MailService {
     public MailService(@Nullable JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
-
     public void sendPasswordResetEmail(String to, String token) {
 
         String link = frontendUrl + "/reset-password?token=" + token;
@@ -40,4 +38,17 @@ public class MailService {
             System.out.println("[DEV][MAIL] " + link);
         }
     }
+    public void sendVerificationEmail(String to, String link) {
+        if (mailSender == null) {
+            // Modo DEV: imprime en consola si no hay SMTP configurado
+            System.out.println("[DEV][MAIL] To: " + to + " | Link: " + link);
+            return;
+        }
+        var msg = new SimpleMailMessage();
+        msg.setTo(to);
+        msg.setSubject("Confirma tu correo - Plataforma UPIIZ");
+        msg.setText("Hola,\n\nPor favor confirma tu correo haciendo clic en el siguiente enlace:\n" + link + "\n\nSi no fuiste tú, ignora este mensaje.");
+        mailSender.send(msg);
+    }
+
 }
