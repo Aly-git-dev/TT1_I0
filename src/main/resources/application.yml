@@ -2,6 +2,11 @@ server:
   port: 8080
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
@@ -55,4 +60,4 @@ logging:
 chat:
   storage:
     baseDir: ${CHAT_STORAGE_BASE_DIR:./data/chat-uploads}
-    maxBytes: ${CHAT_STORAGE_MAX_BYTES:15728640}
+    maxBytes: ${CHAT_STORAGE_MAX_BYTES:104857600}
