@@ -167,6 +167,7 @@ public class ChatService {
                 a.setSizeBytes(sf.sizeBytes());
                 a.setStoragePath(sf.path());
                 saved.add(attRepo.save(a));
+                a.setCreatedAt(Instant.now());
             }
         }
 
