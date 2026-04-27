@@ -37,7 +37,7 @@ spring:
 
 app:
   frontend:
-    url: ${APP_FRONTEND_URL:http://localhost:4200}
+    url: ${APP_FRONTEND_URL:http://148.204.142.20:3030}
 
   security:
     jwt:
