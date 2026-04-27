@@ -16,6 +16,13 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.*;
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 @Service
 public class ChatService {
 
@@ -336,5 +343,34 @@ public class ChatService {
             r.name = (String) obj[2];
             return r;
         }).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> downloadAttachment(UUID me, Long attachmentId) throws MalformedURLException {
+        ChatAttachment a = attRepo.findById(attachmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Archivo no encontrado"));
+
+        ChatMessage m = msgRepo.findById(a.getMessageId())
+                .orElseThrow(() -> new IllegalArgumentException("Mensaje no encontrado"));
+
+        ChatConversation c = access.requireConversation(m.getConversationId());
+        access.requireParticipant(c, me);
+
+        Path path = Paths.get(a.getStoragePath()).normalize();
+        Resource resource = new UrlResource(path.toUri());
+
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new IllegalArgumentException("No se pudo leer el archivo");
+        }
+
+        String filename = a.getOriginalName();
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(a.getMimeType()))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename.replace("\"", "") + "\""
+                )
+                .body(resource);
     }
 }

@@ -5,8 +5,12 @@ import com.upiiz.platform_api.security.CurrentUser;
 import com.upiiz.platform_api.services.ChatReportService;
 import com.upiiz.platform_api.services.ChatService;
 import com.upiiz.platform_api.services.RoleSnapshotResolver;
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -71,5 +75,13 @@ public class ChatController {
     @GetMapping("/users/search")
     public List<UserSearchResponse> searchUsers(@RequestParam String q) {
         return chatService.searchUsers(q);
+    }
+
+    @GetMapping("/attachments/{attachmentId}/download")
+    public ResponseEntity<Resource> downloadAttachment(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long attachmentId
+    ) throws Exception {
+        return chatService.downloadAttachment(CurrentUser.id(), attachmentId);
     }
 }
