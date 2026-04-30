@@ -46,7 +46,11 @@ CREATE TABLE IF NOT EXISTS topic_difficulty_event (
     difficulty_level SMALLINT,
     created_at TIMESTAMP DEFAULT NOW()
     );
-
+-- ELIMINAR VISTAS ANTES DE RECREARLAS
+DROP VIEW IF EXISTS vw_admin_topic_interest CASCADE;
+DROP VIEW IF EXISTS vw_admin_topic_difficulty CASCADE;
+DROP VIEW IF EXISTS vw_teacher_performance CASCADE;
+DROP VIEW IF EXISTS vw_teacher_improvement_areas CASCADE;
 -- 3) VISTAS ADMIN
 CREATE OR REPLACE VIEW vw_admin_topic_interest AS
 SELECT
