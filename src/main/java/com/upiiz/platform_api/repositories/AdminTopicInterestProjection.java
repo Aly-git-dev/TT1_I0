@@ -9,7 +9,7 @@ public interface AdminTopicInterestProjection {
     Long getSubareaId();
     String getSubareaName();
     Long getTotalEvents();
-    Integer getWeightedScore();
+    Long getWeightedScore();
     Long getUniqueUsers();
     LocalDateTime getLastEventAt();
 }
