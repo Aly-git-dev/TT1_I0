@@ -8,10 +8,11 @@ services:
       - "3021:8080"
     depends_on:
       - db
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/upiiz_platform
-      SPRING_DATASOURCE_USERNAME: ${DB_USER}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    api:
+  environment:
+    SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/upiiz_platform
+    SPRING_DATASOURCE_USERNAME: upiiz
+    SPRING_DATASOURCE_PASSWORD: upiizpass
       JWT_SECRET: ${JWT_SECRET}
       TOKEN: ${TOKEN}
       MAIL_USER: ${MAIL_USER}
